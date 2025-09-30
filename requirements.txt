@@ -1,0 +1,7 @@
+
+fastapi
+uvicorn[standard]
+requests
+streamlit
+PyPDF2
+ollama>=0.0.0 ; # optional - install if you want the official client
