@@ -70,6 +70,20 @@ if text_content:
                 out = llm.future_steps(text_content)
                 st.subheader("Next Steps")
                 st.text_area("Next Steps", value=out, height=300)
+# --- RAG Q&A Section ---
+    st.markdown("---") # Add a horizontal line for separation
+    st.subheader("Ask a Question About Your Legal Corpus")
+
+    user_question = st.text_input("Enter your question:")
+
+    if st.button("Ask with RAG"):
+        if user_question:
+            with st.spinner("Searching knowledge base and generating answer..."):
+                answer = llm.ask_question_with_rag(user_question)
+                st.success("Answer:")
+                st.write(answer)
+        else:
+            st.warning("Please enter a question.")
 
 else:
     st.info("Upload a file to get started.")

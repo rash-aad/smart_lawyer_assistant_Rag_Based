@@ -7,9 +7,9 @@ import uvicorn
 # Import the compatibility module
 from . import cohere_utils as llm
 
-app = FastAPI(title="Lawyers Assistant - Ollama Backend")
+app = FastAPI(title="Lawyers Assistant - Ollama Backend")#create instance
 
-class TextRequest(BaseModel):
+class TextRequest(BaseModel):#shape of expected data
     text: str
     task: Optional[str] = None
 

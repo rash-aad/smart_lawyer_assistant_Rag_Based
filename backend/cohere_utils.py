@@ -24,7 +24,7 @@ except Exception:
     _HAS_OLLAMA_PY = False
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")  # adjust if needed
+DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2") 
 
 
 # ----------------- Low-level Ollama calls -----------------
@@ -181,3 +181,62 @@ def cohere_generate(prompt: str, task: Optional[str] = None) -> str:
 
     return ollama_generate(prompt)
 
+
+# Add these imports at the top of your cohere_utils.py file
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.llms import Ollama
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+
+# --- RAG IMPLEMENTATION ---
+
+# Define the path to the persistent vector database
+PERSIST_DIRECTORY = 'db'
+
+def ask_question_with_rag(question: str) -> str:
+    """
+    Answers a question by retrieving relevant context from the vector database.
+    """
+    try:
+        # 1. Initialize models
+        # This is the same embedding model used in ingest.py
+        model_name = "all-MiniLM-L6-v2"
+        embeddings = HuggingFaceEmbeddings(model_name=model_name)
+        llm = Ollama(model="llama3.2") # Make sure this matches your Ollama model
+
+        # 2. Load the existing vector database
+        db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
+        
+        # 3. Create a retriever
+        # This component is responsible for fetching relevant documents
+        retriever = db.as_retriever(search_kwargs={"k": 4}) # Retrieve top 4 most relevant chunks
+
+        # 4. Create a prompt template
+        # This tells the LLM how to use the retrieved context
+        template = """
+        You are a helpful legal assistant. Answer the following question based only on the provided context.
+        If the context does not contain the answer, state that you cannot answer the question.
+        Provide citations from the source document if possible.
+
+        Context:
+        {context}
+
+        Question:
+        {input}
+        """
+        prompt = ChatPromptTemplate.from_template(template)
+
+        # 5. Create the RAG chain
+        # This chain ties together the retriever, prompt, and LLM
+        combine_docs_chain = create_stuff_documents_chain(llm, prompt)
+        retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
+
+        # 6. Invoke the chain and get the response
+        response = retrieval_chain.invoke({"input": question})
+        
+        return response.get("answer", "No answer could be generated.")
+
+    except Exception as e:
+        return f"An error occurred during the RAG process: {e}"
